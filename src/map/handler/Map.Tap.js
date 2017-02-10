@@ -28,15 +28,15 @@ Map.mergeOptions({
 
 export var Tap = Handler.extend({
 	addHooks: function () {
-		DomEvent.on(this._map._container, 'touchstart', this._onDown, this);
+		DomEvent.on(this._map._container, 'pointerdown', this._onDown, this);
 	},
 
 	removeHooks: function () {
-		DomEvent.off(this._map._container, 'touchstart', this._onDown, this);
+		DomEvent.off(this._map._container, 'pointerdown', this._onDown, this);
 	},
 
 	_onDown: function (e) {
-		if (!e.touches) { return; }
+		if (e.pointerType !== 'touch') { return; }
 
 		DomEvent.preventDefault(e);
 
@@ -68,7 +68,7 @@ export var Tap = Handler.extend({
 			}
 		}, this), 1000);
 
-		this._simulateEvent('mousedown', first);
+// 		this._simulateEvent('mousedown', first);
 
 		DomEvent.on(document, {
 			touchmove: this._onMove,
@@ -93,7 +93,7 @@ export var Tap = Handler.extend({
 				DomUtil.removeClass(el, 'leaflet-active');
 			}
 
-			this._simulateEvent('mouseup', first);
+// 			this._simulateEvent('mouseup', first);
 
 			// simulate click if the touch didn't move too much
 			if (this._isTapValid()) {
@@ -107,6 +107,8 @@ export var Tap = Handler.extend({
 	},
 
 	_onMove: function (e) {
+		if (e.pointerType !== 'touch') { return; }
+
 		var first = e.touches[0];
 		this._newPos = new Point(first.clientX, first.clientY);
 		this._simulateEvent('mousemove', first);

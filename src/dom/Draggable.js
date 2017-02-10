@@ -1,5 +1,5 @@
 import {Evented} from '../core/Events';
-import * as Browser from '../core/Browser';
+// import * as Browser from '../core/Browser';
 import * as DomEvent from './DomEvent';
 import * as DomUtil from './DomUtil';
 import * as Util from '../core/Util';
@@ -22,20 +22,6 @@ import {Point} from '../geometry/Point';
  */
 
 var _dragging = false;
-var START = Browser.touch ? 'touchstart mousedown' : 'mousedown';
-var END = {
-	mousedown: 'mouseup',
-	touchstart: 'touchend',
-	pointerdown: 'touchend',
-	MSPointerDown: 'touchend'
-};
-var MOVE = {
-	mousedown: 'mousemove',
-	touchstart: 'touchmove',
-	pointerdown: 'touchmove',
-	MSPointerDown: 'touchmove'
-};
-
 
 export var Draggable = Evented.extend({
 
@@ -63,7 +49,7 @@ export var Draggable = Evented.extend({
 	enable: function () {
 		if (this._enabled) { return; }
 
-		DomEvent.on(this._dragStartTarget, START, this._onDown, this);
+		DomEvent.on(this._dragStartTarget, 'pointerdown', this._onDown, this);
 
 		this._enabled = true;
 	},
@@ -79,7 +65,7 @@ export var Draggable = Evented.extend({
 			this.finishDrag();
 		}
 
-		DomEvent.off(this._dragStartTarget, START, this._onDown, this);
+		DomEvent.off(this._dragStartTarget, 'pointerdown', this._onDown, this);
 
 		this._enabled = false;
 		this._moved = false;
@@ -117,8 +103,8 @@ export var Draggable = Evented.extend({
 
 		this._startPoint = new Point(first.clientX, first.clientY);
 
-		DomEvent.on(document, MOVE[e.type], this._onMove, this);
-		DomEvent.on(document, END[e.type], this._onUp, this);
+		DomEvent.on(document, 'pointermove', this._onMove, this);
+		DomEvent.on(document, 'pointerup pointercancel', this._onUp, this);
 	},
 
 	_onMove: function (e) {
@@ -202,10 +188,8 @@ export var Draggable = Evented.extend({
 			this._lastTarget = null;
 		}
 
-		for (var i in MOVE) {
-			DomEvent.off(document, MOVE[i], this._onMove, this);
-			DomEvent.off(document, END[i], this._onUp, this);
-		}
+		DomEvent.off(document, 'pointermove', this._onMove, this);
+		DomEvent.off(document, 'pointerup pointercancel', this._onUp, this);
 
 		DomUtil.enableImageDrag();
 		DomUtil.enableTextSelection();

@@ -1,8 +1,10 @@
 import {Point} from '../geometry/Point';
 import * as Util from '../core/Util';
 import * as Browser from '../core/Browser';
-import {addPointerListener, removePointerListener} from './DomEvent.Pointer';
+// import {addPointerListener, removePointerListener} from './DomEvent.Pointer';
 import {addDoubleTapListener, removeDoubleTapListener} from './DomEvent.DoubleTap';
+
+import {pointerify, unpointerify, pointerifyHandler} from './DomEvent.PointerDecorators';
 
 /*
  * @namespace DomEvent
@@ -24,13 +26,13 @@ export function on(obj, types, fn, context) {
 
 	if (typeof types === 'object') {
 		for (var type in types) {
-			addOne(obj, type, types[type], fn);
+			addOnePointer(obj, pointerify(type), types[type], fn);
 		}
 	} else {
 		types = Util.splitWords(types);
 
 		for (var i = 0, len = types.length; i < len; i++) {
-			addOne(obj, types[i], fn, context);
+			addOnePointer(obj, pointerify(types[i]), fn, context);
 		}
 	}
 
@@ -56,19 +58,26 @@ export function off(obj, types, fn, context) {
 
 	if (typeof types === 'object') {
 		for (var type in types) {
-			removeOne(obj, type, types[type], fn);
+			removeOnePointer(obj, type, types[type], fn);
 		}
 	} else if (types) {
 		types = Util.splitWords(types);
 
 		for (var i = 0, len = types.length; i < len; i++) {
-			removeOne(obj, types[i], fn, context);
+			removeOnePointer(obj, types[i], fn, context);
 		}
 	} else {
 		for (var j in obj[eventsKey]) {
-			removeOne(obj, j, obj[eventsKey][j]);
+			removeOnePointer(obj, j, obj[eventsKey][j]);
 		}
 		delete obj[eventsKey];
+	}
+}
+
+function addOnePointer(obj, type, fn, context) {
+	var types = unpointerify(type);
+	for (var i = 0, len = types.length; i < len; i++) {
+		addOne(obj, types[i], fn, context);
 	}
 }
 
@@ -77,17 +86,13 @@ function addOne(obj, type, fn, context) {
 
 	if (obj[eventsKey] && obj[eventsKey][id]) { return this; }
 
-	var handler = function (e) {
+	var handler = pointerifyHandler(type, function (e) {
 		return fn.call(context || obj, e || window.event);
-	};
+	});
 
 	var originalHandler = handler;
 
-	if (Browser.pointer && type.indexOf('touch') === 0) {
-		// Needs DomEvent.Pointer.js
-		addPointerListener(obj, type, handler, id);
-
-	} else if (Browser.touch && (type === 'dblclick') && addDoubleTapListener &&
+	if ((Browser.touch || Browser.edge) && (type === 'dblclick') && addDoubleTapListener &&
 	           !(Browser.pointer && Browser.chrome)) {
 		// Chrome >55 does not need the synthetic dblclicks from addDoubleTapListener
 		// See #5180
@@ -98,14 +103,14 @@ function addOne(obj, type, fn, context) {
 		if (type === 'mousewheel') {
 			obj.addEventListener('onwheel' in obj ? 'wheel' : 'mousewheel', handler, false);
 
-		} else if ((type === 'mouseenter') || (type === 'mouseleave')) {
+		} else if ((type === 'pointerenter') || (type === 'pointerleave')) {
 			handler = function (e) {
 				e = e || window.event;
 				if (isExternalTarget(obj, e)) {
 					originalHandler(e);
 				}
 			};
-			obj.addEventListener(type === 'mouseenter' ? 'mouseover' : 'mouseout', handler, false);
+			obj.addEventListener(type === 'pointerenter' ? 'pointerover' : 'pointerout', handler, false);
 
 		} else {
 			if (type === 'click' && Browser.android) {
@@ -124,6 +129,13 @@ function addOne(obj, type, fn, context) {
 	obj[eventsKey][id] = handler;
 }
 
+function removeOnePointer(obj, type, fn, context) {
+	var types = unpointerify(type);
+	for (var i = 0, len = types.length; i < len; i++) {
+		removeOne(obj, types[i], fn, context);
+	}
+}
+
 function removeOne(obj, type, fn, context) {
 
 	var id = type + Util.stamp(fn) + (context ? '_' + Util.stamp(context) : ''),
@@ -131,10 +143,7 @@ function removeOne(obj, type, fn, context) {
 
 	if (!handler) { return this; }
 
-	if (Browser.pointer && type.indexOf('touch') === 0) {
-		removePointerListener(obj, type, id);
-
-	} else if (Browser.touch && (type === 'dblclick') && removeDoubleTapListener) {
+	if ((Browser.touch || Browser.edge) && (type === 'dblclick') && removeDoubleTapListener) {
 		removeDoubleTapListener(obj, id);
 
 	} else if ('removeEventListener' in obj) {
