@@ -20,6 +20,15 @@ module.exports = function (config) {
 		{pattern: "dist/images/*.png", included: false, serve: true}
 	];
 
+    var outro = "var oldL = window.L;\n" + 
+        "exports.noConflict = function() {\n" + 
+        "	window.L = oldL;\n" + 
+        "	return this;\n" + 
+        "}\n" + 
+        "\n" + 
+        "// Always export us to window global (see #2364)\n" + 
+        "window.L = exports;";
+    
 	config.set({
 		// base path, that will be used to resolve files and exclude
 		basePath: '../',
@@ -52,7 +61,8 @@ module.exports = function (config) {
 				json()
 			],
 			format: 'umd',
-			name: 'L'
+			name: 'L',
+            outro: outro
 		},
 
 		// test results reporter to use
