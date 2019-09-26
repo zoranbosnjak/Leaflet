@@ -6,4 +6,4 @@ export {DomEvent};
 import * as DomUtil from './DomUtil';
 export {DomUtil};
 
-export {Draggable} from './Draggable';
+export {Draggable, MouseBtnDraggable} from './Draggable';

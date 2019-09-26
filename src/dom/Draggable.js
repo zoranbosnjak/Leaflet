@@ -234,3 +234,85 @@ export var Draggable = Evented.extend({
 	}
 
 });
+
+export var MouseBtnDraggable = Draggable.extend({
+    disable: function () {
+        if (!this._enabled) { return; }
+
+		if (MouseBtnDraggable._dragging === this) {
+			this.finishDrag();
+		}
+
+		DomEvent.off(this._dragStartTarget, START, this._onDown, this);
+
+		this._enabled = false;
+		this._moved = false;
+    },
+    _onDown: function (e) {
+        if (e._simulated || !this._enabled) { return; }
+
+		this._moved = false;
+
+		if (DomUtil.hasClass(this._element, 'leaflet-zoom-anim')) { return; }
+
+		if (MouseBtnDraggable._dragging || e.shiftKey || (e.which !== 2) && (e.button !== 1)) {
+            DomEvent.preventDefault(e);
+            return;
+        }
+        MouseBtnDraggable._dragging = this;  // Prevent dragging multiple objects at once.
+
+		if (this._preventOutline) {
+			DomUtil.preventOutline(this._element);
+		}
+
+		DomUtil.disableImageDrag();
+		DomUtil.disableTextSelection();
+
+		if (this._moving) { return; }
+
+		// @event down: Event
+		// Fired when a drag is about to start.
+		this.fire('down');
+
+		var first = e.touches ? e.touches[0] : e,
+			sizedParent = DomUtil.getSizedParentNode(this._element);
+
+		this._startPoint = new Point(first.clientX, first.clientY);
+
+		// Cache the scale, so that we can continuously compensate for it during drag (_onMove).
+		this._parentScale = DomUtil.getScale(sizedParent);
+
+		DomEvent.on(document, MOVE[e.type], this._onMove, this);
+		DomEvent.on(document, END[e.type], this._onUp, this);
+    },
+    finishDrag: function () {
+        DomUtil.removeClass(document.body, 'leaflet-dragging');
+
+		if (this._lastTarget) {
+			DomUtil.removeClass(this._lastTarget, 'leaflet-drag-target');
+			this._lastTarget = null;
+		}
+
+		for (var i in MOVE) {
+			DomEvent.off(document, MOVE[i], this._onMove, this);
+			DomEvent.off(document, END[i], this._onUp, this);
+		}
+
+		DomUtil.enableImageDrag();
+		DomUtil.enableTextSelection();
+
+		if (this._moved && this._moving) {
+			// ensure drag is not fired after dragend
+			Util.cancelAnimFrame(this._animRequest);
+
+			// @event dragend: DragEndEvent
+			// Fired when the drag ends.
+			this.fire('dragend', {
+				distance: this._newPos.distanceTo(this._startPos)
+			});
+		}
+
+		this._moving = false;
+		MouseBtnDraggable._dragging = false;
+    }
+});

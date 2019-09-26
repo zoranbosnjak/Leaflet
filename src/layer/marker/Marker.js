@@ -3,7 +3,7 @@ import {IconDefault} from './Icon.Default';
 import * as Util from '../../core/Util';
 import {toLatLng as latLng} from '../../geo/LatLng';
 import * as DomUtil from '../../dom/DomUtil';
-import {MarkerDrag} from './Marker.Drag';
+import {MarkerDrag, MarkerMouseBtnDrag} from './Marker.Drag';
 
 /*
  * @class Marker
@@ -371,6 +371,31 @@ export var Marker = Layer.extend({
 	}
 });
 
+export var LabelMarker = Marker.extend({
+    _initInteraction: function () {
+
+        if (!this.options.interactive) { return; }
+
+		DomUtil.addClass(this._icon, 'leaflet-interactive');
+
+		this.addInteractiveTarget(this._icon);
+
+		if (MarkerMouseBtnDrag) {
+			var draggable = this.options.draggable;
+			if (this.dragging) {
+				draggable = this.dragging.enabled();
+				this.dragging.disable();
+			}
+
+			this.dragging = new MarkerMouseBtnDrag(this);
+
+			if (draggable) {
+				this.dragging.enable();
+			}
+		}
+    }
+});
+
 
 // factory L.marker(latlng: LatLng, options? : Marker options)
 
@@ -378,4 +403,8 @@ export var Marker = Layer.extend({
 // Instantiates a Marker object given a geographical point and optionally an options object.
 export function marker(latlng, options) {
 	return new Marker(latlng, options);
+}
+
+export function labelMarker(latlng, options) {
+	return new LabelMarker(latlng, options);
 }

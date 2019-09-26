@@ -1,6 +1,6 @@
 import {Handler} from '../../core/Handler';
 import * as DomUtil from '../../dom/DomUtil';
-import {Draggable} from '../../dom/Draggable';
+import {Draggable, MouseBtnDraggable} from '../../dom/Draggable';
 import {toBounds} from '../../geometry/Bounds';
 import {toPoint} from '../../geometry/Point';
 import {requestAnimFrame, cancelAnimFrame} from '../../core/Util';
@@ -155,4 +155,23 @@ export var MarkerDrag = Handler.extend({
 		    .fire('moveend')
 		    .fire('dragend', e);
 	}
+});
+
+export var MarkerMouseBtnDrag = MarkerDrag.extend({
+    addHooks: function () {
+        var icon = this._marker._icon;
+
+		if (!this._draggable) {
+			this._draggable = new MouseBtnDraggable(icon, icon, true);
+		}
+
+        this._draggable.on({
+			dragstart: this._onDragStart,
+			predrag: this._onPreDrag,
+			drag: this._onDrag,
+			dragend: this._onDragEnd
+        }, this).enable();
+        
+		DomUtil.addClass(icon, 'leaflet-marker-draggable');
+    }
 });

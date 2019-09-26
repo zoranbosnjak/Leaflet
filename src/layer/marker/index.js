@@ -5,4 +5,4 @@ Icon.Default = IconDefault;
 export {Icon};
 
 export {DivIcon, divIcon} from './DivIcon';
-export {Marker, marker} from './Marker';
+export {Marker, marker, LabelMarker, labelMarker} from './Marker';
