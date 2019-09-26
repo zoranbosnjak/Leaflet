@@ -1,5 +1,5 @@
 /* @preserve
- * Leaflet 1.5.1, a JS library for interactive maps. http://leafletjs.com
+ * Leaflet 1.5.1+jetscope.73ce6ec, a JS library for interactive maps. http://leafletjs.com
  * (c) 2010-2018 Vladimir Agafonkin, (c) 2010-2011 CloudMade
  */
 
@@ -9,7 +9,7 @@
 	(factory((global.L = {})));
 }(this, (function (exports) { 'use strict';
 
-var version = "1.5.1";
+var version = "1.5.1+jetscope.73ce6ec8";
 
 /*
  * @namespace Util
@@ -5999,6 +5999,88 @@ var Draggable = Evented.extend({
 
 });
 
+var MouseBtnDraggable = Draggable.extend({
+    disable: function () {
+        if (!this._enabled) { return; }
+
+		if (MouseBtnDraggable._dragging === this) {
+			this.finishDrag();
+		}
+
+		off(this._dragStartTarget, START, this._onDown, this);
+
+		this._enabled = false;
+		this._moved = false;
+    },
+    _onDown: function (e) {
+        if (e._simulated || !this._enabled) { return; }
+
+		this._moved = false;
+
+		if (hasClass(this._element, 'leaflet-zoom-anim')) { return; }
+
+		if (MouseBtnDraggable._dragging || e.shiftKey || (e.which !== 2) && (e.button !== 1)) {
+            preventDefault(e);
+            return;
+        }
+        MouseBtnDraggable._dragging = this;  // Prevent dragging multiple objects at once.
+
+		if (this._preventOutline) {
+			preventOutline(this._element);
+		}
+
+		disableImageDrag();
+		disableTextSelection();
+
+		if (this._moving) { return; }
+
+		// @event down: Event
+		// Fired when a drag is about to start.
+		this.fire('down');
+
+		var first = e.touches ? e.touches[0] : e,
+			sizedParent = getSizedParentNode(this._element);
+
+		this._startPoint = new Point(first.clientX, first.clientY);
+
+		// Cache the scale, so that we can continuously compensate for it during drag (_onMove).
+		this._parentScale = getScale(sizedParent);
+
+		on(document, MOVE[e.type], this._onMove, this);
+		on(document, END[e.type], this._onUp, this);
+    },
+    finishDrag: function () {
+        removeClass(document.body, 'leaflet-dragging');
+
+		if (this._lastTarget) {
+			removeClass(this._lastTarget, 'leaflet-drag-target');
+			this._lastTarget = null;
+		}
+
+		for (var i in MOVE) {
+			off(document, MOVE[i], this._onMove, this);
+			off(document, END[i], this._onUp, this);
+		}
+
+		enableImageDrag();
+		enableTextSelection();
+
+		if (this._moved && this._moving) {
+			// ensure drag is not fired after dragend
+			cancelAnimFrame(this._animRequest);
+
+			// @event dragend: DragEndEvent
+			// Fired when the drag ends.
+			this.fire('dragend', {
+				distance: this._newPos.distanceTo(this._startPos)
+			});
+		}
+
+		this._moving = false;
+		MouseBtnDraggable._dragging = false;
+    }
+});
+
 /*
  * @namespace LineUtil
  *
@@ -7371,6 +7453,25 @@ var MarkerDrag = Handler.extend({
 	}
 });
 
+var MarkerMouseBtnDrag = MarkerDrag.extend({
+    addHooks: function () {
+        var icon = this._marker._icon;
+
+		if (!this._draggable) {
+			this._draggable = new MouseBtnDraggable(icon, icon, true);
+		}
+
+        this._draggable.on({
+			dragstart: this._onDragStart,
+			predrag: this._onPreDrag,
+			drag: this._onDrag,
+			dragend: this._onDragEnd
+        }, this).enable();
+        
+		addClass(icon, 'leaflet-marker-draggable');
+    }
+});
+
 /*
  * @class Marker
  * @inherits Interactive layer
@@ -7737,6 +7838,31 @@ var Marker = Layer.extend({
 	}
 });
 
+var LabelMarker = Marker.extend({
+    _initInteraction: function () {
+
+        if (!this.options.interactive) { return; }
+
+		addClass(this._icon, 'leaflet-interactive');
+
+		this.addInteractiveTarget(this._icon);
+
+		if (MarkerMouseBtnDrag) {
+			var draggable = this.options.draggable;
+			if (this.dragging) {
+				draggable = this.dragging.enabled();
+				this.dragging.disable();
+			}
+
+			this.dragging = new MarkerMouseBtnDrag(this);
+
+			if (draggable) {
+				this.dragging.enable();
+			}
+		}
+    }
+});
+
 
 // factory L.marker(latlng: LatLng, options? : Marker options)
 
@@ -7744,6 +7870,10 @@ var Marker = Layer.extend({
 // Instantiates a Marker object given a geographical point and optionally an options object.
 function marker(latlng, options) {
 	return new Marker(latlng, options);
+}
+
+function labelMarker(latlng, options) {
+	return new LabelMarker(latlng, options);
 }
 
 /*
@@ -13945,6 +14075,7 @@ exports.DomEvent = DomEvent;
 exports.DomUtil = DomUtil;
 exports.PosAnimation = PosAnimation;
 exports.Draggable = Draggable;
+exports.MouseBtnDraggable = MouseBtnDraggable;
 exports.LineUtil = LineUtil;
 exports.PolyUtil = PolyUtil;
 exports.Point = Point;
@@ -13984,6 +14115,8 @@ exports.DivIcon = DivIcon;
 exports.divIcon = divIcon;
 exports.Marker = Marker;
 exports.marker = marker;
+exports.LabelMarker = LabelMarker;
+exports.labelMarker = labelMarker;
 exports.TileLayer = TileLayer;
 exports.tileLayer = tileLayer;
 exports.GridLayer = GridLayer;
